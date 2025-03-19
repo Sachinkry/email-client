@@ -1,140 +1,157 @@
-import type React from "react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  Archive,
-  ArrowLeft,
-  Clock,
-  Download,
-  Forward,
-  MoreHorizontal,
-  Reply,
-  ReplyAll,
-  Star,
-  Trash2,
-} from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+// components/email-view.tsx
+"use client";
 
-interface EmailViewProps extends React.HTMLAttributes<HTMLDivElement> {}
+import { useEffect, useState } from "react";
+import { Paperclip, Reply, Forward, Trash2, ArrowLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
+import sanitizeHtml from "sanitize-html";
+import DOMPurify from "dompurify";
+import { useSession } from "next-auth/react";
+import { useEmailContext } from "@/lib/email-context";
 
-export default function EmailView({ className }: EmailViewProps) {
-  return (
-    <div className={cn("flex flex-col h-full", className)}>
-      <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <ArrowLeft className="h-4 w-4" />
-            <span className="sr-only">Back</span>
-          </Button>
-          <h2 className="text-lg font-semibold">Weekly Team Meeting Notes</h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon">
-            <Archive className="h-4 w-4" />
-            <span className="sr-only">Archive</span>
-          </Button>
-          <Button variant="ghost" size="icon">
-            <Trash2 className="h-4 w-4" />
-            <span className="sr-only">Delete</span>
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal className="h-4 w-4" />
-                <span className="sr-only">More</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>Mark as unread</DropdownMenuItem>
-              <DropdownMenuItem>Add star</DropdownMenuItem>
-              <DropdownMenuItem>Snooze</DropdownMenuItem>
-              <DropdownMenuItem>Move to</DropdownMenuItem>
-              <DropdownMenuItem>Label as</DropdownMenuItem>
-              <DropdownMenuItem>Block sender</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-auto p-4">
-        <div className="flex items-start justify-between mb-6">
-          <div className="flex items-start gap-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src="/placeholder.svg?height=40&width=40" alt="Sarah Johnson" />
-              <AvatarFallback>SJ</AvatarFallback>
-            </Avatar>
-            <div>
-              <div className="flex items-center gap-2">
-                <div className="font-semibold">Sarah Johnson</div>
-                <Button variant="ghost" size="icon" className="h-6 w-6">
-                  <Star className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="text-sm text-muted-foreground">To: me, team@company.com</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <div className="flex items-center">
-              <Clock className="mr-1 h-3 w-3" />
-              10:30 AM (2 hours ago)
-            </div>
-          </div>
-        </div>
-
-        <div className="prose prose-sm dark:prose-invert max-w-none">
-          <p>Hi Team,</p>
-          <p>
-            Here are the notes from our meeting yesterday. We discussed the upcoming project deadlines and resource
-            allocation for the next quarter.
-          </p>
-          <h3>Key Points:</h3>
-          <ul>
-            <li>Project Alpha is on track for delivery by the end of the month</li>
-            <li>We need to allocate additional resources to Project Beta</li>
-            <li>The client meeting for Project Gamma is scheduled for next Tuesday</li>
-            <li>All team members should update their timesheets by Friday</li>
-          </ul>
-          <p>
-            Please review the attached documents for more detailed information. Let me know if you have any questions or
-            concerns.
-          </p>
-          <p>
-            Best regards,
-            <br />
-            Sarah
-          </p>
-        </div>
-
-        <div className="mt-6 border rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="font-medium">Meeting_Notes.pdf</div>
-            <Button variant="ghost" size="sm">
-              <Download className="mr-2 h-4 w-4" />
-              Download
-            </Button>
-          </div>
-          <div className="text-sm text-muted-foreground">PDF Document - 2.4 MB</div>
-        </div>
-      </div>
-
-      <div className="p-4 border-t">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="flex-1 sm:flex-none">
-            <Reply className="mr-2 h-4 w-4" />
-            Reply
-          </Button>
-          <Button variant="outline" className="hidden sm:flex">
-            <ReplyAll className="mr-2 h-4 w-4" />
-            Reply All
-          </Button>
-          <Button variant="outline" className="hidden sm:flex">
-            <Forward className="mr-2 h-4 w-4" />
-            Forward
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
+interface EmailViewProps {
+  emailId?: string;
+  className?: string;
 }
 
+interface Email {
+  id: string;
+  from: string;
+  subject: string;
+  date: string;
+  to: string;
+  body: string;
+  hasAttachment: boolean;
+  isHtml: boolean;
+}
+
+export function EmailView({ emailId: propEmailId, className }: EmailViewProps) {
+  const [email, setEmail] = useState<Email | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+  const { status } = useSession();
+  const { selectedEmailId, setSelectedEmailId } = useEmailContext();
+  const effectiveEmailId = propEmailId || selectedEmailId;
+
+  useEffect(() => {
+    if (status === "authenticated" && effectiveEmailId) {
+      fetchEmail();
+    } else if (!effectiveEmailId) {
+      setEmail(null);
+      setError(null);
+      setLoading(false);
+    }
+  }, [effectiveEmailId, status]);
+
+  const fetchEmail = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/email/${effectiveEmailId}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch email");
+      }
+      const data = await response.json();
+      setEmail(data);
+    } catch (err) {
+      setError("Failed to load email. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAction = (action: string) => {
+    toast({ title: `${action} not implemented yet`, description: "This feature is coming soon!" });
+  };
+
+  const handleBack = () => {
+    setSelectedEmailId(null); // Clear the selected email to show the list
+  };
+
+  if (status === "unauthenticated") {
+    return <div className={cn("p-4", className)}>Please sign in to view emails.</div>;
+  }
+
+  if (!effectiveEmailId) {
+    return <div className={cn("p-4 text-muted-foreground", className)}>Select an email to view.</div>;
+  }
+
+  if (loading) {
+    return <div className={cn("p-4", className)}>Loading email...</div>;
+  }
+
+  if (error || !email) {
+    return (
+      <div className={cn("p-4", className)}>
+        {error || "Email not found"}
+        <Button onClick={fetchEmail} className="mt-2">Retry</Button>
+      </div>
+    );
+  }
+
+
+const sanitizedBody = email.isHtml
+  ? DOMPurify.sanitize(email.body, {
+      ADD_TAGS: ["style"],
+      ADD_ATTR: ["style"],
+    })
+  : email.body;
+
+  return (
+    <div className={cn("flex flex-col h-full", className)}>
+      <div className="flex items-center p-4 border-b">
+        <Button variant="ghost" size="sm" onClick={handleBack} className="mr-2">
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <h1 className="text-lg font-semibold truncate">{email.subject}</h1>
+      </div>
+      <ScrollArea className="flex-1 p-4">
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium">From:</span> {email.from}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium">To:</span> {email.to}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium">Date:</span> {email.date}
+            </p>
+            {email.hasAttachment && (
+              <p className="text-sm text-muted-foreground flex items-center">
+                <Paperclip className="h-4 w-4 mr-2" />
+                Attachment(s) present (download not implemented yet)
+              </p>
+            )}
+          </div>
+          {email.isHtml ? (
+            <div
+              className="prose prose-sm max-w-none"
+              dangerouslySetInnerHTML={{ __html: sanitizedBody }}
+            />
+          ) : (
+            <div className="prose prose-sm max-w-none">{sanitizedBody}</div>
+          )}
+        </div>
+      </ScrollArea>
+      <div className="p-4 border-t flex justify-end gap-2">
+        <Button variant="ghost" size="sm" onClick={() => handleAction("Reply")}>
+          <Reply className="h-4 w-4 mr-2" />
+          Reply
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => handleAction("Forward")}>
+          <Forward className="h-4 w-4 mr-2" />
+          Forward
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => handleAction("Delete")}>
+          <Trash2 className="h-4 w-4 mr-2" />
+          Delete
+        </Button>
+      </div>
+    </div>
+  );
+}

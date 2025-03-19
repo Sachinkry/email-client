@@ -1,154 +1,101 @@
-"use client"
+// components/compose-button.tsx
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Pencil, X, Paperclip, Bold, Italic, List, ListOrdered, LinkIcon, Image } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { useState } from "react";
+import { Paperclip, Send } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { useSession } from "next-auth/react";
 
 interface ComposeButtonProps extends React.HTMLAttributes<HTMLDivElement> {}
 
 export function ComposeButton({ className }: ComposeButtonProps) {
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false);
+  const [to, setTo] = useState("");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const { toast } = useToast();
+  const { status } = useSession();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (status !== "authenticated") {
+      toast({ title: "Error", description: "Please sign in to send emails.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to, subject, body }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to send email");
+      }
+
+      toast({ title: "Success", description: "Email sent successfully!" });
+      setIsOpen(false);
+      setTo("");
+      setSubject("");
+      setBody("");
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to send email.", variant: "destructive" });
+    }
+  };
 
   return (
-    <div className={className}>
+    <div className={cn(className)}>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-          <Button size="lg" className="rounded-full shadow-lg">
-            <Pencil className="mr-2 h-4 w-4" />
+          <Button variant="default" size="lg" className="rounded-full">
+            <Send className="mr-2 h-4 w-4" />
             Compose
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[700px] h-[80vh] flex flex-col p-0 gap-0">
-          <DialogHeader className="flex flex-row items-center justify-between border-b p-4">
-            <DialogTitle>New Message</DialogTitle>
-            <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto flex flex-col">
-            <div className="border-b">
-              <div className="p-4 flex items-center gap-2">
-                <Label htmlFor="to" className="w-16 text-right">
-                  To
-                </Label>
-                <Input
-                  id="to"
-                  placeholder="recipient@example.com"
-                  className="flex-1 border-0 shadow-none focus-visible:ring-0"
-                />
-              </div>
-              <div className="p-4 flex items-center gap-2 border-t">
-                <Label htmlFor="cc" className="w-16 text-right">
-                  Cc
-                </Label>
-                <Input
-                  id="cc"
-                  placeholder="cc@example.com"
-                  className="flex-1 border-0 shadow-none focus-visible:ring-0"
-                />
-              </div>
-              <div className="p-4 flex items-center gap-2 border-t">
-                <Label htmlFor="subject" className="w-16 text-right">
-                  Subject
-                </Label>
-                <Input
-                  id="subject"
-                  placeholder="Enter subject"
-                  className="flex-1 border-0 shadow-none focus-visible:ring-0"
-                />
-              </div>
-            </div>
-
-            <div className="p-2 border-b flex items-center gap-1 flex-wrap">
-              <TooltipProvider delayDuration={300}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <Bold className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Bold</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <Italic className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Italic</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <List className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Bullet List</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <ListOrdered className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Numbered List</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <LinkIcon className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Insert Link</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <Image className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Insert Image</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-
-            <div className="flex-1 p-4">
+        <DialogContent className="sm:max-w-[600px]">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Input
+                placeholder="To"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                required
+              />
+              <Input
+                placeholder="Subject"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                required
+              />
               <Textarea
-                placeholder="Compose your message..."
-                className="min-h-[200px] h-full w-full resize-none border-0 focus-visible:ring-0 p-0"
+                placeholder="Type your message here..."
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                className="min-h-[200px]"
+                required
               />
             </div>
-          </div>
-
-          <div className="border-t p-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
+            <div className="flex items-center justify-between">
+              <Button variant="outline" size="sm" disabled>
                 <Paperclip className="mr-2 h-4 w-4" />
-                Attach
+                Attach (Coming Soon)
               </Button>
+              <div className="space-x-2">
+                <Button variant="outline" type="button" onClick={() => setIsOpen(false)}>
+                  Discard
+                </Button>
+                <Button type="submit">Send</Button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => setIsOpen(false)}>
-                Discard
-              </Button>
-              <Button type="submit">Send</Button>
-            </div>
-          </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
-

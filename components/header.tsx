@@ -1,16 +1,19 @@
-"use client"
+// components/header.tsx
+"use client";
 
-import { useState } from "react"
-import { Bell, Menu, Search, Settings } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Sidebar } from "@/components/sidebar"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { useState } from "react";
+import { signIn, signOut, useSession } from "next-auth/react";
+import { Bell, Menu, Search, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Sidebar } from "@/components/sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function Header() {
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false)
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const { data: session, status } = useSession();
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
@@ -49,12 +52,18 @@ export function Header() {
           <span className="sr-only">Settings</span>
         </Button>
         <ThemeToggle />
-        <Avatar>
-          <AvatarImage src="/placeholder.svg?height=32&width=32" alt="User" />
-          <AvatarFallback>JD</AvatarFallback>
-        </Avatar>
+        {status === "authenticated" ? (
+          <>
+            <Avatar>
+              <AvatarImage src={session.user?.image || "/placeholder.svg?height=32&width=32"} alt={session.user?.name || "User"} />
+              <AvatarFallback>{session.user?.name?.[0] || "U"}</AvatarFallback>
+            </Avatar>
+            <Button variant="outline" onClick={() => signOut()}>Sign Out</Button>
+          </>
+        ) : (
+          <Button variant="outline" onClick={() => signIn("google")}>Sign In</Button>
+        )}
       </div>
     </header>
-  )
+  );
 }
-

@@ -1,10 +1,12 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { SessionProvider } from 'next-auth/react'
+import AuthProvider from '@/components/auth-provider'
+import { EmailProvider } from '@/lib/email-context'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
+  title: 'Email Client',
+  description: '',
 }
 
 export default function RootLayout({
@@ -14,7 +16,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body >
+      <AuthProvider>
+        <EmailProvider>{children}</EmailProvider>
+      </AuthProvider>
+      </body>
     </html>
   )
 }
