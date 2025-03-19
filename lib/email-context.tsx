@@ -12,14 +12,16 @@ interface Email {
   preview: string;
   time: string;
   hasAttachment: boolean;
-  category: string; // Add category field
+  category: string;
 }
 
 interface EmailContextType {
   selectedEmailId: string | null;
   setSelectedEmailId: (id: string | null) => void;
   emails: Email[];
-  setEmails: (emails: Email[]) => void;
+  setEmails: React.Dispatch<React.SetStateAction<Email[]>>; // Updated type
+  selectedCategory: string;
+  setSelectedCategory: (category: string) => void;
 }
 
 const EmailContext = createContext<EmailContextType | undefined>(undefined);
@@ -27,9 +29,19 @@ const EmailContext = createContext<EmailContextType | undefined>(undefined);
 export function EmailProvider({ children }: { children: ReactNode }) {
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [emails, setEmails] = useState<Email[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("primary");
 
   return (
-    <EmailContext.Provider value={{ selectedEmailId, setSelectedEmailId, emails, setEmails }}>
+    <EmailContext.Provider
+      value={{
+        selectedEmailId,
+        setSelectedEmailId,
+        emails,
+        setEmails,
+        selectedCategory,
+        setSelectedCategory,
+      }}
+    >
       {children}
     </EmailContext.Provider>
   );

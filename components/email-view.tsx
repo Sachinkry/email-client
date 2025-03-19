@@ -93,13 +93,12 @@ export function EmailView({ emailId: propEmailId, className }: EmailViewProps) {
     );
   }
 
-
-const sanitizedBody = email.isHtml
-  ? DOMPurify.sanitize(email.body, {
-      ADD_TAGS: ["style"],
-      ADD_ATTR: ["style"],
-    })
-  : email.body;
+  const sanitizedBody = email.isHtml
+    ? DOMPurify.sanitize(email.body, {
+        ADD_TAGS: ["style"],
+        ADD_ATTR: ["style"],
+      })
+    : email.body;
 
   return (
     <div className={cn("flex flex-col h-full", className)}>
